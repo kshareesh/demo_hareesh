@@ -1,0 +1,136 @@
+name: devops-governance
+
+on:
+  workflow_call:
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+
+env:
+  PERSONAL_ACCESS_TOKEN: ${{ secrets.AZURE_PERSONAL_TOKEN }}
+
+jobs:
+  devops-governance-checks:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Get Branch Name
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "pull_request_review" ]]; then
+            BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+          else
+            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          fi
+          echo "Branch: $BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> "$GITHUB_ENV"
+
+      - name: Validate Branch Naming
+        run: |
+          # Exclude main and development
+          if [[ "$BRANCH_NAME" == "main" || "$BRANCH_NAME" == "development" ]]; then
+            echo "Skipping validation for protected branch: $BRANCH_NAME"
+            exit 0
+          fi
+
+          PATTERN="^(us[0-9]{6,}|r[0-9]{6,}|fb[0-9]{6,}|hb[0-9]{6,})(-tk[0-9]{6,})?(-[a-z0-9-]+)+$"
+
+          if [[ "$BRANCH_NAME" =~ $PATTERN ]]; then
+            echo "✅ Branch: $BRANCH_NAME - Branch name valid"
+          else
+            echo "❌ Invalid Branch Name"
+            echo "Branch: $BRANCH_NAME"
+            echo "------------------------------------"
+            echo "Sample valid formats:"
+            echo "------------------------------------"
+            echo "r654183-gbs-release"
+            echo "fb452689-gbs-r5-enhancement"
+            echo "hb487935-hotfix-changes"
+            echo "us732187-new-claims"
+            echo "us732187-tk740320-ct-edw-support-request"
+            echo "------------------------------------"
+            exit 1
+          fi
+
+      # - name: Extract Work Item IDs from branch name
+      #   run: |
+      #     US_ID=$(echo "$BRANCH_NAME" | grep -oP '^us\K[0-9]{6,}' || true)
+      #     TK_ID=$(echo "$BRANCH_NAME" | grep -oP 'tk\K[0-9]{6,}' || true)
+
+      #     echo "📌 UserStory=$US_ID"
+      #     echo "📌 Task=$TK_ID"
+
+      #     echo "US_ID=$US_ID" >> "$GITHUB_ENV"
+      #     echo "TK_ID=$TK_ID" >> "$GITHUB_ENV"
+
+      # - name: Validate User Story in Azure DevOps
+      #   if: env.US_ID != ''
+      #   run: |
+      #     ADO_URL="https://dev.azure.com/MyGainwell/CTO%20Data%20Analytics/_apis/wit/workitems/${US_ID}?api-version=7.0"
+
+      #     RESPONSE="$(curl -sS --fail-with-body \
+      #       -u ":${PERSONAL_ACCESS_TOKEN}" \
+      #       -H "Accept: application/json" \
+      #       "$ADO_URL")"
+
+      #     if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
+      #       echo "❌ Invalid JSON response from Azure DevOps"
+      #       echo "$RESPONSE" | head -c 300
+      #       echo
+      #       exit 1
+      #     fi
+
+      #     STATE="$(echo "$RESPONSE" | jq -r '.fields["System.State"] // empty')"
+      #     TITLE="$(echo "$RESPONSE" | jq -r '.fields["System.Title"] // empty')"
+
+      #     if [[ -z "$STATE" ]]; then
+      #       echo "❌ User Story not found or missing state"
+      #       exit 1
+      #     fi
+
+      #     echo "✅ User Story Title: $TITLE"
+      #     echo "✅ User Story State: $STATE"
+
+      #     if [[ "$STATE" == "Closed" || "$STATE" == "Done" ]]; then
+      #       echo "❌ Branch cannot be created for completed User Story"
+      #       exit 1
+      #     fi
+
+      #     echo "ADO_TITLE=$TITLE" >> "$GITHUB_ENV"
+      #     echo "ADO_STATE=$STATE" >> "$GITHUB_ENV"
+
+      # - name: Validate Task (Optional)
+      #   if: env.TK_ID != ''
+      #   run: |
+      #     ADO_URL="https://dev.azure.com/MyGainwell/CTO%20Data%20Analytics/_apis/wit/workitems/${TK_ID}?api-version=7.0"
+
+      #     RESPONSE="$(curl -sS --fail-with-body \
+      #       -u ":${PERSONAL_ACCESS_TOKEN}" \
+      #       -H "Accept: application/json" \
+      #       "$ADO_URL")"
+
+      #     if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
+      #       echo "❌ Invalid JSON response for Task"
+      #       echo "$RESPONSE" | head -c 300
+      #       echo
+      #       exit 1
+      #     fi
+
+      #     STATE="$(echo "$RESPONSE" | jq -r '.fields["System.State"] // empty')"
+
+      #     if [[ "$STATE" == "Closed" || "$STATE" == "Done" ]]; then
+      #       echo "❌ Task already completed. Branch cannot use closed task ID"
+      #       exit 1
+      #     fi
