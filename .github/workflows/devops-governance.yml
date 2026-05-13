@@ -55,7 +55,6 @@ jobs:
           
           # Regex for allowed branch names
           REGEX="^(us[0-9]{6,}|r[0-9]{6,}|fb[0-9]{6,}|hb[0-9]{6,})(-tk[0-9]{6,})?(-[a-z0-9-]+)+$"
-          # PATTERN="^(us[0-9]{6,}|r[0-9]{6,}|fb[0-9]{6,}|hb[0-9]{6,})(-tk[0-9]{6,})?(-[a-z0-9-]+)+$"
 
           if [[ "$BRANCH_NAME" =~ $PATTERN ]]; then
             echo "✅ Branch: $BRANCH_NAME - Branch name valid"
