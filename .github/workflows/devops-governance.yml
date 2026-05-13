@@ -1,7 +1,12 @@
 name: devops-governance
 
 on:
-  workflow_call:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
 
 permissions:
   id-token: write
@@ -27,13 +32,15 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
+      
       - name: Get Branch Name
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "pull_request_review" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
           else
-            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+            BRANCH_NAME="${GITHUB_REF_NAME}"
           fi
+
           echo "Branch: $BRANCH_NAME"
           echo "BRANCH_NAME=$BRANCH_NAME" >> "$GITHUB_ENV"
 
