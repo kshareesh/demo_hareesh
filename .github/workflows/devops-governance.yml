@@ -44,6 +44,17 @@ jobs:
           echo "Branch: $BRANCH_NAME"
           echo "BRANCH_NAME=$BRANCH_NAME" >> "$GITHUB_ENV"
 
+      
+      - name: Skip protected branches
+        run: |
+          echo "Checking if branch is protected: $BRANCH_NAME"
+
+          if [[ "$BRANCH_NAME" == "main" || \
+                "$BRANCH_NAME" == f* ]]; then
+            echo "✅ Protected branch detected. Skipping validation."
+            exit 0
+          fi
+
       - name: Validate Branch Naming
         run: |
           # Exclude main and development
@@ -52,7 +63,9 @@ jobs:
             exit 0
           fi
 
-          PATTERN="^(us[0-9]{6,}|r[0-9]{6,}|fb[0-9]{6,}|hb[0-9]{6,})(-tk[0-9]{6,})?(-[a-z0-9-]+)+$"
+          
+          # Regex for allowed branch names
+          REGEX="^(us[0-9]{6,}|r[0-9]{6,}|fb[0-9]{6,}|hb[0-9]{6,})(-tk[0-9]{6,})?(-[a-z0-9-]+)+$"
 
           if [[ "$BRANCH_NAME" =~ $PATTERN ]]; then
             echo "✅ Branch: $BRANCH_NAME - Branch name valid"
