@@ -55,10 +55,14 @@ jobs:
             exit 0
           fi
 
-      - name: Validate Branch Naming
+
+      - name: Validate branch name
         run: |
-          # Exclude main and development
-          if [[ "$BRANCH_NAME" == "main" || "$BRANCH_NAME" == "development" ]]; then
+          echo "Validating branch: $BRANCH_NAME"
+
+          REGEX="^(feature|bugfix|chore)\/[A-Z]+-[0-9]+-.+$"
+
+          if [[ ! "$BRANCH_NAME" =~ $REGEX ]]; then
             echo "Skipping validation for protected branch: $BRANCH_NAME"
             exit 0
           fi
